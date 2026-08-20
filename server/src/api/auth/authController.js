@@ -29,7 +29,7 @@ const login = async (req, res) => {
       .request()
       .input("email", sql.NVarChar, email)
       .query(
-        "SELECT userId, email, fullName, password, role FROM users WHERE email = @email"
+        "SELECT userId, email, fullName, password, role, isActive FROM users WHERE email = @email"
       );
 
     if (result.recordset.length === 0) {
@@ -40,6 +40,14 @@ const login = async (req, res) => {
     }
 
     const user = result.recordset[0];
+
+    // Check if account is inactive
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been deactivated. Please contact your supervisor.",
+      });
+    }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
