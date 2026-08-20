@@ -23,7 +23,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
     if (user?.role === "Supervisor") {
       return <Navigate to="/dashboard" replace />;
     }
-    return <Navigate to="/my-projects" replace />;
+    return <Navigate to="/kanban" replace />;
   }
 
   return <Outlet />;

@@ -19,7 +19,7 @@ const LoginPage = () => {
       if (user.role === "Supervisor") {
         navigate("/dashboard", { replace: true });
       } else {
-        navigate("/my-projects", { replace: true });
+        navigate("/kanban", { replace: true });
       }
     } catch (error) {
       const msg =
