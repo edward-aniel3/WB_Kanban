@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Table, Tag, message, Popconfirm, Empty, Spin } from "antd";
 import {
   UserAddOutlined,
@@ -7,7 +7,6 @@ import {
   CheckCircleOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
-import LogoutButton from "../components/LogoutButton";
 import Button from "../components/common/Button";
 import AddEmployeeModal from "../components/AddEmployeeModal";
 import {
@@ -24,7 +23,7 @@ const EmployeesPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchEmployees = useCallback(async () => {
+  const loadEmployees = async () => {
     setLoading(true);
     try {
       const response = await getEmployees();
@@ -36,11 +35,34 @@ const EmployeesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const response = await getEmployees();
+        if (!cancelled) {
+          setEmployees(response.data.data.employees);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const msg =
+            error.response?.data?.message || "Failed to load employees.";
+          message.error(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleAddEmployee = async (values) => {
     setSubmitting(true);
@@ -48,7 +70,7 @@ const EmployeesPage = () => {
       await addEmployee(values);
       message.success("Employee added successfully.");
       setModalOpen(false);
-      fetchEmployees();
+      loadEmployees();
     } catch (error) {
       const msg =
         error.response?.data?.message || "Failed to add employee.";
@@ -62,7 +84,7 @@ const EmployeesPage = () => {
     try {
       const response = await toggleEmployeeStatus(userId);
       message.success(response.data.message);
-      fetchEmployees();
+      loadEmployees();
     } catch (error) {
       const msg =
         error.response?.data?.message || "Failed to update status.";
@@ -74,7 +96,7 @@ const EmployeesPage = () => {
     try {
       await deleteUser(userId);
       message.success("Employee deleted successfully.");
-      fetchEmployees();
+      loadEmployees();
     } catch (error) {
       const msg =
         error.response?.data?.message || "Failed to delete employee.";
@@ -124,13 +146,16 @@ const EmployeesPage = () => {
       title: "Actions",
       key: "actions",
       render: (_, record) => {
-        // Don't show actions for the current supervisor
         if (record.userId === user?.id) return null;
 
         return (
           <div className="flex gap-2">
             <Popconfirm
-              title={record.isActive ? "Deactivate this employee?" : "Activate this employee?"}
+              title={
+                record.isActive
+                  ? "Deactivate this employee?"
+                  : "Activate this employee?"
+              }
               onConfirm={() => handleToggleStatus(record.userId)}
               okText="Yes"
               cancelText="No"
@@ -138,7 +163,9 @@ const EmployeesPage = () => {
               <Button
                 variant={record.isActive ? "danger" : "primary"}
                 size="small"
-                icon={record.isActive ? <StopOutlined /> : <CheckCircleOutlined />}
+                icon={
+                  record.isActive ? <StopOutlined /> : <CheckCircleOutlined />
+                }
               >
                 {record.isActive ? "Deactivate" : "Activate"}
               </Button>
@@ -167,63 +194,49 @@ const EmployeesPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-primary">WB Kanban</h1>
-          <LogoutButton />
+    <div>
+      {/* Page Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Team Members</h2>
+          <p className="text-gray-500 mt-1">
+            Manage your team members and their access
+          </p>
         </div>
-      </header>
+        <Button
+          variant="primary"
+          icon={<UserAddOutlined />}
+          onClick={() => setModalOpen(true)}
+        >
+          Add Employee
+        </Button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Page Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Team Members</h2>
-            <p className="text-gray-500 mt-1">
-              Manage your team members and their access
-            </p>
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow-sm">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spin size="large" />
           </div>
-          <Button
-            variant="primary"
-            icon={<UserAddOutlined />}
-            onClick={() => setModalOpen(true)}
-          >
-            Add Employee
-          </Button>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <Spin size="large" />
-            </div>
-          ) : employees.length === 0 ? (
-            <Empty
-              description="No team members yet"
-              className="py-12"
+        ) : employees.length === 0 ? (
+          <Empty description="No team members yet" className="py-12">
+            <Button
+              variant="primary"
+              icon={<UserAddOutlined />}
+              onClick={() => setModalOpen(true)}
             >
-              <Button
-                variant="primary"
-                icon={<UserAddOutlined />}
-                onClick={() => setModalOpen(true)}
-              >
-                Add Your First Employee
-              </Button>
-            </Empty>
-          ) : (
-            <Table
-              columns={columns}
-              dataSource={employees}
-              rowKey="teamMemberId"
-              pagination={{ pageSize: 10 }}
-            />
-          )}
-        </div>
-      </main>
+              Add Your First Employee
+            </Button>
+          </Empty>
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={employees}
+            rowKey="teamMemberId"
+            pagination={{ pageSize: 10 }}
+          />
+        )}
+      </div>
 
       {/* Add Employee Modal */}
       <AddEmployeeModal

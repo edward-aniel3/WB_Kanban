@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { Form, Input, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
@@ -8,8 +8,13 @@ import wbLogo from "../assets/WB-Logo.png";
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  if (authLoading) return null;
+  if (isAuthenticated) {
+    return <Navigate to={user?.role === "Supervisor" ? "/dashboard" : "/kanban"} replace />;
+  }
 
   const onFinish = async (values) => {
     setLoading(true);
@@ -19,7 +24,7 @@ const LoginPage = () => {
       if (user.role === "Supervisor") {
         navigate("/dashboard", { replace: true });
       } else {
-        navigate("/my-projects", { replace: true });
+        navigate("/kanban", { replace: true });
       }
     } catch (error) {
       const msg =

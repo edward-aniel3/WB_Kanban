@@ -1,15 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Form, Input, Modal } from "antd";
 import { UserOutlined, MailOutlined, LockOutlined } from "@ant-design/icons";
-import Button from "./common/Button";
 
 const AddEmployeeModal = ({ open, onClose, onSubmit, loading }) => {
   const [form] = Form.useForm();
+  const prevOpen = useRef(open);
 
   useEffect(() => {
-    if (!open) {
+    if (prevOpen.current && !open) {
       form.resetFields();
     }
+    prevOpen.current = open;
   }, [open, form]);
 
   const handleOk = async () => {

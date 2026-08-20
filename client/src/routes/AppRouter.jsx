@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
 import EmployeesPage from "../pages/EmployeesPage";
 import ProtectedRoute from "../components/ProtectedRoute";
-import LogoutButton from "../components/LogoutButton";
+import MainLayout from "../components/layout/MainLayout";
 import { useAuth } from "../context/AuthContext";
 
 const RoleRedirect = () => {
@@ -10,7 +10,7 @@ const RoleRedirect = () => {
   if (user?.role === "Supervisor") {
     return <Navigate to="/dashboard" replace />;
   }
-  return <Navigate to="/my-projects" replace />;
+  return <Navigate to="/kanban" replace />;
 };
 
 const AppRouter = () => {
@@ -19,44 +19,32 @@ const AppRouter = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Protected routes - Supervisor only */}
-      <Route element={<ProtectedRoute allowedRoles={["Supervisor"]} />}>
-        <Route path="/dashboard" element={
-          <div className="min-h-screen bg-surface">
-            <header className="bg-white shadow-sm">
-              <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                <h1 className="text-xl font-bold text-primary">WB Kanban</h1>
-                <LogoutButton />
-              </div>
-            </header>
-            <main className="max-w-7xl mx-auto px-4 py-8">
+      {/* Protected routes with MainLayout */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<MainLayout />}>
+          {/* Supervisor routes */}
+          <Route path="/dashboard" element={
+            <div>
               <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
               <p className="text-gray-600 mt-2">Welcome, Supervisor!</p>
-            </main>
-          </div>
-        } />
-        <Route path="/employees" element={<EmployeesPage />} />
-      </Route>
-
-      {/* Protected routes - Employee only */}
-      <Route element={<ProtectedRoute allowedRoles={["Employee"]} />}>
-        <Route
-          path="/my-projects"
-          element={
-            <div className="min-h-screen bg-surface">
-              <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                  <h1 className="text-xl font-bold text-primary">WB Kanban</h1>
-                  <LogoutButton />
-                </div>
-              </header>
-              <main className="max-w-7xl mx-auto px-4 py-8">
-                <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
-                <p className="text-gray-600 mt-2">Welcome, Employee!</p>
-              </main>
             </div>
-          }
-        />
+          } />
+          <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/reports" element={
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">Reports</h2>
+              <p className="text-gray-600 mt-2">Reports coming soon.</p>
+            </div>
+          } />
+
+          {/* Shared routes */}
+          <Route path="/kanban" element={
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">Kanban Board</h2>
+              <p className="text-gray-600 mt-2">Kanban board coming soon.</p>
+            </div>
+          } />
+        </Route>
       </Route>
 
       {/* Root redirect */}
