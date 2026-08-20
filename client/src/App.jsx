@@ -1,10 +1,23 @@
+import { BrowserRouter } from "react-router-dom";
+import { message } from "antd";
+import { AuthProvider } from "./context/AuthContext";
+import AppRouter from "./routes/AppRouter";
+
+// Configure global message (toast)
+message.config({
+  duration: 3,
+  maxCount: 3,
+  top: 20,
+});
 
 function App() {
- return (
-    <div className="bg-primary text-white min-h-screen flex items-center justify-center">
-      <h1>Hello, World!</h1>
-    </div>
-  )
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
