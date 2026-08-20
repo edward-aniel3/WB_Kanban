@@ -41,7 +41,6 @@ const Button = ({
     large: "large",
   };
 
-  const dangerClass = variant === "danger" ? "ant-btn-danger" : "";
   const customClasses = [
     variant === "secondary" ? "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200" : "",
     variant === "danger" ? "text-red-500 hover:text-red-600 border-red-500 hover:border-red-600" : "",
