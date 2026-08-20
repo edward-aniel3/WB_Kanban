@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import authRoutes from "./api/auth/authRoute.js";
+import employeeRoutes from "./api/employees/employeesRoute.js";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/employees", employeeRoutes);
 
 app.get("/api/v1/health", async (req, res) => {
   try {
