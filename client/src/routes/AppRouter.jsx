@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
 import EmployeesPage from "../pages/EmployeesPage";
+import KanbanPage from "../pages/KanbanPage";
 import ProtectedRoute from "../components/ProtectedRoute";
 import MainLayout from "../components/layout/MainLayout";
 import { useAuth } from "../context/AuthContext";
@@ -38,12 +39,7 @@ const AppRouter = () => {
           } />
 
           {/* Shared routes */}
-          <Route path="/kanban" element={
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Kanban Board</h2>
-              <p className="text-gray-600 mt-2">Kanban board coming soon.</p>
-            </div>
-          } />
+          <Route path="/kanban" element={<KanbanPage />} />
         </Route>
       </Route>
 

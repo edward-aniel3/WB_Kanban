@@ -241,8 +241,8 @@ const deleteTicket = async (ticketId, userId) => {
     await transaction.begin();
 
     // 1. Log the deletion first (before removing records)
-    const logRequest = new sql.Request(transaction);
-    await logRequest
+    const insertLogRequest = new sql.Request(transaction);
+    await insertLogRequest
       .input("ticketId", sql.Int, ticketId)
       .input("changedBy", sql.Int, userId)
       .input("actionType", sql.NVarChar, "deleted")
@@ -252,13 +252,14 @@ const deleteTicket = async (ticketId, userId) => {
       );
 
     // 2. Delete from ticketLogs (child records)
-    await logRequest
+    const deleteLogsRequest = new sql.Request(transaction);
+    await deleteLogsRequest
       .input("ticketId", sql.Int, ticketId)
       .query("DELETE FROM ticketLogs WHERE ticketId = @ticketId");
 
     // 3. Delete from tickets (parent record)
-    const ticketRequest = new sql.Request(transaction);
-    const result = await ticketRequest
+    const deleteTicketRequest = new sql.Request(transaction);
+    const result = await deleteTicketRequest
       .input("ticketId", sql.Int, ticketId)
       .query("DELETE FROM tickets WHERE ticketId = @ticketId");
 
@@ -266,7 +267,12 @@ const deleteTicket = async (ticketId, userId) => {
 
     return result.rowsAffected[0] > 0;
   } catch (error) {
-    await transaction.rollback();
+    // Rollback safely — don't mask the original error if rollback itself fails
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Rollback failed:", rollbackError.message);
+    }
     throw error;
   }
 };
