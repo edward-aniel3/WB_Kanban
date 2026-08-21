@@ -7,6 +7,7 @@ import {
   assignTicket,
   deleteTicket,
 } from "./ticketServices.js";
+import { getEmployeeByTeamMemberId } from "../employees/employeesServices.js";
 
 const VALID_STATUSES = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const VALID_PRIORITIES = ["Low", "Medium", "High"];
@@ -50,7 +51,7 @@ const getTickets = async (req, res) => {
  */
 const createTicketHandler = async (req, res) => {
   try {
-    const { title, description, status, priority, assignedTo } = req.body;
+    const { title, description, status, priority, assignedTo } = req.body || {};
 
     // Validate required fields
     if (!title || typeof title !== "string" || title.trim().length < 3 || title.trim().length > 255) {
@@ -82,6 +83,17 @@ const createTicketHandler = async (req, res) => {
         success: false,
         message: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(", ")}.`,
       });
+    }
+
+    // Validate assignee (must be a valid team member or null)
+    if (assignedTo !== undefined && assignedTo !== null) {
+      const assignee = await getEmployeeByTeamMemberId(assignedTo);
+      if (!assignee) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid assignee. Must be a valid team member.",
+        });
+      }
     }
 
     const ticket = await createTicket({
@@ -168,7 +180,7 @@ const updateTicketHandler = async (req, res) => {
       });
     }
 
-    const { title, description, priority } = req.body;
+    const { title, description, priority } = req.body || {};
 
     // Validate title
     if (title !== undefined) {
@@ -242,7 +254,7 @@ const updateTicketStatusHandler = async (req, res) => {
       });
     }
 
-    const { status } = req.body;
+    const { status } = req.body || {};
 
     if (!status || !VALID_STATUSES.includes(status)) {
       return res.status(400).json({
@@ -253,7 +265,14 @@ const updateTicketStatusHandler = async (req, res) => {
 
     // Authorization: only assignee or Supervisor can update status
     const isSupervisor = req.user.role === "Supervisor";
-    const isAssignee = existing.assignedTo === req.user.userId;
+    let isAssignee = false;
+
+    if (existing.assignedTo) {
+      const assignee = await getEmployeeByTeamMemberId(existing.assignedTo);
+      if (assignee) {
+        isAssignee = assignee.userId === req.user.userId;
+      }
+    }
 
     if (!isSupervisor && !isAssignee) {
       return res.status(403).json({
@@ -302,15 +321,24 @@ const assignTicketHandler = async (req, res) => {
       });
     }
 
-    const { assignedTo } = req.body;
+    const { assignedTo } = req.body || {};
 
-    // assignedTo should be a userId integer or null (to unassign)
+    // assignedTo should be a teamMemberId integer or null (to unassign)
     if (assignedTo !== null && assignedTo !== undefined) {
       const assigneeId = parseInt(assignedTo);
       if (isNaN(assigneeId)) {
         return res.status(400).json({
           success: false,
           message: "Invalid assignee ID.",
+        });
+      }
+
+      // Validate that assignee is a valid team member
+      const assignee = await getEmployeeByTeamMemberId(assigneeId);
+      if (!assignee) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid assignee. Must be a valid team member.",
         });
       }
     }

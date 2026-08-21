@@ -67,7 +67,8 @@ const getAllTickets = async ({ status, priority, assignee, unassigned, search, s
       t.updatedAt,
       u.fullName AS assigneeName
     FROM tickets t
-    LEFT JOIN users u ON t.assignedTo = u.userId
+    LEFT JOIN teamMembers tm ON t.assignedTo = tm.teamMemberId
+    LEFT JOIN users u ON tm.userId = u.userId
     ${whereStr}
     ORDER BY ${sortColumn} ${direction}
     OFFSET @skip ROWS
@@ -121,7 +122,8 @@ const getTicketById = async (ticketId) => {
         u.fullName AS assigneeName,
         c.fullName AS creatorName
       FROM tickets t
-      LEFT JOIN users u ON t.assignedTo = u.userId
+      LEFT JOIN teamMembers tm ON t.assignedTo = tm.teamMemberId
+      LEFT JOIN users u ON tm.userId = u.userId
       LEFT JOIN users c ON t.createdBy = c.userId
       WHERE t.ticketId = @ticketId`
     );
