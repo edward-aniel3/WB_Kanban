@@ -4,6 +4,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import authRoutes from "./api/auth/authRoute.js";
 import employeeRoutes from "./api/employees/employeesRoute.js";
+import ticketRoutes from "./api/tickets/ticketsRoute.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api", ticketRoutes);
 
 app.get("/api/v1/health", async (req, res) => {
   try {
