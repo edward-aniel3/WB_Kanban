@@ -67,7 +67,8 @@ const getAllTickets = async ({ status, priority, assignee, unassigned, search, s
       t.updatedAt,
       u.fullName AS assigneeName
     FROM tickets t
-    LEFT JOIN users u ON t.assignedTo = u.userId
+    LEFT JOIN teamMembers tm ON t.assignedTo = tm.teamMemberId
+    LEFT JOIN users u ON tm.userId = u.userId
     ${whereStr}
     ORDER BY ${sortColumn} ${direction}
     OFFSET @skip ROWS
@@ -121,7 +122,8 @@ const getTicketById = async (ticketId) => {
         u.fullName AS assigneeName,
         c.fullName AS creatorName
       FROM tickets t
-      LEFT JOIN users u ON t.assignedTo = u.userId
+      LEFT JOIN teamMembers tm ON t.assignedTo = tm.teamMemberId
+      LEFT JOIN users u ON tm.userId = u.userId
       LEFT JOIN users c ON t.createdBy = c.userId
       WHERE t.ticketId = @ticketId`
     );
@@ -229,23 +231,35 @@ const assignTicket = async (ticketId, assignedTo) => {
 
 /**
  * Hard-delete a ticket and its logs (transaction)
+ * Logs the deletion before removing records
  */
-const deleteTicket = async (ticketId) => {
+const deleteTicket = async (ticketId, userId) => {
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
 
   try {
     await transaction.begin();
 
-    // 1. Delete from ticketLogs first (child records)
-    const logRequest = new sql.Request(transaction);
-    await logRequest
+    // 1. Log the deletion first (before removing records)
+    const insertLogRequest = new sql.Request(transaction);
+    await insertLogRequest
+      .input("ticketId", sql.Int, ticketId)
+      .input("changedBy", sql.Int, userId)
+      .input("actionType", sql.NVarChar, "deleted")
+      .query(
+        `INSERT INTO ticketLogs (ticketId, changedBy, actionType, fromStatus, toStatus, changedAt)
+         VALUES (@ticketId, @changedBy, @actionType, '', '', GETDATE())`
+      );
+
+    // 2. Delete from ticketLogs (child records)
+    const deleteLogsRequest = new sql.Request(transaction);
+    await deleteLogsRequest
       .input("ticketId", sql.Int, ticketId)
       .query("DELETE FROM ticketLogs WHERE ticketId = @ticketId");
 
-    // 2. Delete from tickets (parent record)
-    const ticketRequest = new sql.Request(transaction);
-    const result = await ticketRequest
+    // 3. Delete from tickets (parent record)
+    const deleteTicketRequest = new sql.Request(transaction);
+    const result = await deleteTicketRequest
       .input("ticketId", sql.Int, ticketId)
       .query("DELETE FROM tickets WHERE ticketId = @ticketId");
 
@@ -253,7 +267,12 @@ const deleteTicket = async (ticketId) => {
 
     return result.rowsAffected[0] > 0;
   } catch (error) {
-    await transaction.rollback();
+    // Rollback safely — don't mask the original error if rollback itself fails
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error("Rollback failed:", rollbackError.message);
+    }
     throw error;
   }
 };
