@@ -15,7 +15,7 @@ const VALID_PRIORITIES = ["Low", "Medium", "High"];
  * GET /api/tickets
  * List all tickets with filtering, sorting, and pagination
  */
-const getTickets = async (req, res) => {
+const getTickets = async (req, res, next) => {
   try {
     const { status, priority, assignee, unassigned, search, sortBy, sortDir, skip, take } = req.query;
 
@@ -37,10 +37,7 @@ const getTickets = async (req, res) => {
     });
   } catch (error) {
     console.error("Get tickets error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -48,7 +45,7 @@ const getTickets = async (req, res) => {
  * POST /api/tickets
  * Create a new ticket
  */
-const createTicketHandler = async (req, res) => {
+const createTicketHandler = async (req, res, next) => {
   try {
     const { title, description, status, priority, assignedTo } = req.body;
 
@@ -100,10 +97,7 @@ const createTicketHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Create ticket error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -111,7 +105,7 @@ const createTicketHandler = async (req, res) => {
  * GET /api/tickets/:id
  * Get a single ticket by ID
  */
-const getTicket = async (req, res) => {
+const getTicket = async (req, res, next) => {
   try {
     const ticketId = parseInt(req.params.id);
 
@@ -137,10 +131,7 @@ const getTicket = async (req, res) => {
     });
   } catch (error) {
     console.error("Get ticket error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -148,7 +139,7 @@ const getTicket = async (req, res) => {
  * PUT /api/tickets/:id
  * Update ticket details (title, description, priority)
  */
-const updateTicketHandler = async (req, res) => {
+const updateTicketHandler = async (req, res, next) => {
   try {
     const ticketId = parseInt(req.params.id);
 
@@ -211,10 +202,7 @@ const updateTicketHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Update ticket error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -222,7 +210,7 @@ const updateTicketHandler = async (req, res) => {
  * PATCH /api/tickets/:id/status
  * Update ticket status (assignee or Supervisor only)
  */
-const updateTicketStatusHandler = async (req, res) => {
+const updateTicketStatusHandler = async (req, res, next) => {
   try {
     const ticketId = parseInt(req.params.id);
 
@@ -271,10 +259,7 @@ const updateTicketStatusHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Update ticket status error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -282,7 +267,7 @@ const updateTicketStatusHandler = async (req, res) => {
  * PATCH /api/tickets/:id/assign
  * Assign or unassign a ticket
  */
-const assignTicketHandler = async (req, res) => {
+const assignTicketHandler = async (req, res, next) => {
   try {
     const ticketId = parseInt(req.params.id);
 
@@ -324,10 +309,7 @@ const assignTicketHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Assign ticket error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -335,7 +317,7 @@ const assignTicketHandler = async (req, res) => {
  * DELETE /api/tickets/:id
  * Delete a ticket completely (Supervisor only)
  */
-const deleteTicketHandler = async (req, res) => {
+const deleteTicketHandler = async (req, res, next) => {
   try {
     const ticketId = parseInt(req.params.id);
 
@@ -370,10 +352,7 @@ const deleteTicketHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete ticket error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 

@@ -5,7 +5,7 @@ import { JWT_SECRET, JWT_EXPIRES_IN } from "../../config/jwt.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -83,14 +83,11 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
   try {
     const { email, password, name, role } = req.body;
 
@@ -158,14 +155,11 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error("Register error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
   try {
     res.clearCookie("token", {
       httpOnly: true,
@@ -179,14 +173,11 @@ const logout = async (req, res) => {
     });
   } catch (error) {
     console.error("Logout error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const me = async (req, res) => {
+const me = async (req, res, next) => {
   try {
     const pool = await poolPromise;
 
@@ -217,10 +208,7 @@ const me = async (req, res) => {
     });
   } catch (error) {
     console.error("Me error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
