@@ -231,21 +231,32 @@ const assignTicket = async (ticketId, assignedTo) => {
 
 /**
  * Hard-delete a ticket and its logs (transaction)
+ * Logs the deletion before removing records
  */
-const deleteTicket = async (ticketId) => {
+const deleteTicket = async (ticketId, userId) => {
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
 
   try {
     await transaction.begin();
 
-    // 1. Delete from ticketLogs first (child records)
+    // 1. Log the deletion first (before removing records)
     const logRequest = new sql.Request(transaction);
+    await logRequest
+      .input("ticketId", sql.Int, ticketId)
+      .input("changedBy", sql.Int, userId)
+      .input("actionType", sql.NVarChar, "deleted")
+      .query(
+        `INSERT INTO ticketLogs (ticketId, changedBy, actionType, fromStatus, toStatus, changedAt)
+         VALUES (@ticketId, @changedBy, @actionType, '', '', GETDATE())`
+      );
+
+    // 2. Delete from ticketLogs (child records)
     await logRequest
       .input("ticketId", sql.Int, ticketId)
       .query("DELETE FROM ticketLogs WHERE ticketId = @ticketId");
 
-    // 2. Delete from tickets (parent record)
+    // 3. Delete from tickets (parent record)
     const ticketRequest = new sql.Request(transaction);
     const result = await ticketRequest
       .input("ticketId", sql.Int, ticketId)
