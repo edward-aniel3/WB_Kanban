@@ -8,6 +8,7 @@ import {
   deleteTicket,
 } from "./ticketServices.js";
 import { getEmployeeByTeamMemberId } from "../employees/employeesServices.js";
+import { createTicketLog, getTicketHistory } from "./ticketLogServices.js";
 
 const VALID_STATUSES = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const VALID_PRIORITIES = ["Low", "Medium", "High"];
@@ -105,6 +106,15 @@ const createTicketHandler = async (req, res) => {
       createdBy: req.user.userId,
     });
 
+    // Log ticket creation
+    await createTicketLog({
+      ticketId: ticket.ticketId,
+      changeBy: req.user.userId,
+      actionType: "created",
+      fromStatus: "",
+      toStatus: ticket.status,
+    });
+
     return res.status(201).json({
       success: true,
       message: "Ticket created successfully.",
@@ -112,6 +122,45 @@ const createTicketHandler = async (req, res) => {
     });
   } catch (error) {
     console.error("Create ticket error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+};
+
+/**
+ * GET /api/tickets/:id/history
+ * Get ticket history (all logs for a ticket)
+ */
+const getTicketHistoryHandler = async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+
+    if (isNaN(ticketId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ticket ID.",
+      });
+    }
+
+    // Check if ticket exists
+    const ticket = await getTicketById(ticketId);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found.",
+      });
+    }
+
+    const logs = await getTicketHistory(ticketId);
+
+    return res.status(200).json({
+      success: true,
+      data: { logs },
+    });
+  } catch (error) {
+    console.error("Get ticket history error:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error.",
@@ -216,6 +265,15 @@ const updateTicketHandler = async (req, res) => {
       priority,
     });
 
+    // Log ticket update
+    await createTicketLog({
+      ticketId,
+      changeBy: req.user.userId,
+      actionType: "updated",
+      fromStatus: "",
+      toStatus: "",
+    });
+
     return res.status(200).json({
       success: true,
       message: "Ticket updated successfully.",
@@ -283,6 +341,15 @@ const updateTicketStatusHandler = async (req, res) => {
 
     const ticket = await updateTicketStatus(ticketId, status);
 
+    // Log status change
+    await createTicketLog({
+      ticketId,
+      changeBy: req.user.userId,
+      actionType: "status_changed",
+      fromStatus: existing.status,
+      toStatus: status,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Ticket status updated successfully.",
@@ -343,7 +410,18 @@ const assignTicketHandler = async (req, res) => {
       }
     }
 
-    const ticket = await assignTicket(ticketId, assignedTo !== undefined ? assignedTo : null);
+    const ticket = await assignTicket(ticketId, assignedTo !== undefined ? parseInt(assignedTo) : null);
+
+    // Log assignment change
+    await createTicketLog({
+      ticketId,
+      changeBy: req.user.userId,
+      actionType: "assigned",
+      fromStatus: "",
+      toStatus: "",
+      oldAssignee: existing.assignedTo || null,
+      newAssignee: assignedTo ? parseInt(assignedTo) : null,
+    });
 
     return res.status(200).json({
       success: true,
@@ -383,7 +461,7 @@ const deleteTicketHandler = async (req, res) => {
       });
     }
 
-    const success = await deleteTicket(ticketId);
+    const success = await deleteTicket(ticketId, req.user.userId);
 
     if (!success) {
       return res.status(404).json({
@@ -409,6 +487,7 @@ export {
   getTickets,
   createTicketHandler,
   getTicket,
+  getTicketHistoryHandler,
   updateTicketHandler,
   updateTicketStatusHandler,
   assignTicketHandler,

@@ -5,6 +5,7 @@ import {
   getTickets,
   createTicketHandler,
   getTicket,
+  getTicketHistoryHandler,
   updateTicketHandler,
   updateTicketStatusHandler,
   assignTicketHandler,
@@ -21,6 +22,9 @@ router.get("/tickets", getTickets);
 
 // POST /api/tickets - Create a new ticket
 router.post("/tickets", createTicketHandler);
+
+// GET /api/tickets/:id/history - Get ticket history (must be before /tickets/:id)
+router.get("/tickets/:id/history", getTicketHistoryHandler);
 
 // GET /api/tickets/:id - Get a single ticket
 router.get("/tickets/:id", getTicket);
