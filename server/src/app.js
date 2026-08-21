@@ -1,5 +1,5 @@
 import express from "express";
-import cors from "cors";
+import cors from "./config/cors.js";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import authRoutes from "./api/auth/authRoute.js";
@@ -11,17 +11,10 @@ import dbWakingErrorHandler from "./middlewares/errorMiddleware.js";
 const app = express();
 
 app.use(helmet());
-
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(cors);
 
 // Health check is mounted before the API routers on purpose: ticketRoutes
 // applies authMiddleware to everything mounted under /api, which would
