@@ -23,8 +23,10 @@ const SORT_OPTIONS = [
   { value: "priority:ASC", label: "Priority (Low → High)" },
 ];
 
-// Board filter, sort, and search controls
-const FilterBar = () => {
+// Board filter, sort, and search controls.
+// hideSort lets aggregate views (e.g. Reports) reuse the bar without the
+// ordering control, which has no effect on aggregated data.
+const FilterBar = ({ hideSort = false }) => {
   const {
     filters,
     setFilters,
@@ -110,15 +112,17 @@ const FilterBar = () => {
         onChange={(e) => setSearchText(e.target.value)}
       />
 
-      <Select
-        style={{ minWidth: 180 }}
-        value={`${sortBy}:${sortDir}`}
-        options={SORT_OPTIONS}
-        onChange={(value) => {
-          const [nextSortBy, nextSortDir] = value.split(":");
-          setSort(nextSortBy, nextSortDir);
-        }}
-      />
+      {!hideSort && (
+        <Select
+          style={{ minWidth: 180 }}
+          value={`${sortBy}:${sortDir}`}
+          options={SORT_OPTIONS}
+          onChange={(value) => {
+            const [nextSortBy, nextSortDir] = value.split(":");
+            setSort(nextSortBy, nextSortDir);
+          }}
+        />
+      )}
 
       {hasActiveFilters ? (
         <Button
