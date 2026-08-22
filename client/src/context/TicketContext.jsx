@@ -2,9 +2,11 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import { message } from "antd";
 import { useAuth } from "./AuthContext";
 import { getEmployees } from "../services/employeesService";
@@ -17,10 +19,17 @@ import {
   getTicketHistory as getTicketHistoryApi,
   deleteTicket as deleteTicketApi,
 } from "../services/ticketsService";
+import {
+  parseFilters,
+  parseSort,
+  filterTickets,
+  sortTickets,
+} from "../utils/ticketFilters";
 
 const TicketContext = createContext(null);
 
 const PAGE_SIZE = 50;
+const MAX_PAGES = 40;
 
 const KANBAN_STATUSES = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 
@@ -30,34 +39,22 @@ const EMPLOYEE_TRANSITIONS = {
   "In Progress": ["In Review"],
 };
 
+// URL params owned by this context; anything else in the URL is preserved
+const MANAGED_PARAMS = ["status", "priority", "assignee", "q"];
+
 const initialState = {
-  tickets: [],
+  tickets: [], // full unfiltered dataset
   total: 0,
   loading: true,
-  loadingMore: false,
   error: null,
-  filters: {
-    status: null,
-    priority: null,
-    assignee: null,
-    search: "",
-  },
-  sortBy: "createdAt",
-  sortDir: "DESC",
   employees: [],
 };
 
 const ticketReducer = (state, action) => {
   switch (action.type) {
     case "SET_TICKETS": {
-      const { tickets, total, append } = action.payload;
-      if (!append) {
-        return { ...state, tickets, total };
-      }
-      // Append page, skipping duplicates
-      const existingIds = new Set(state.tickets.map((t) => t.ticketId));
-      const fresh = tickets.filter((t) => !existingIds.has(t.ticketId));
-      return { ...state, tickets: [...state.tickets, ...fresh], total };
+      const { tickets, total } = action.payload;
+      return { ...state, tickets, total };
     }
     case "ADD_TICKET":
       return {
@@ -84,16 +81,8 @@ const ticketReducer = (state, action) => {
     }
     case "SET_LOADING":
       return { ...state, loading: action.payload };
-    case "SET_LOADING_MORE":
-      return { ...state, loadingMore: action.payload };
     case "SET_ERROR":
       return { ...state, error: action.payload };
-    case "SET_FILTERS":
-      return { ...state, filters: { ...state.filters, ...action.payload } };
-    case "SET_SORT": {
-      const { sortBy, sortDir } = action.payload;
-      return { ...state, sortBy, sortDir };
-    }
     case "SET_EMPLOYEES":
       return { ...state, employees: action.payload };
     default:
@@ -107,6 +96,7 @@ const getErrorMessage = (error, fallback) =>
 export const TicketProvider = ({ children }) => {
   const { user } = useAuth();
   const [state, dispatch] = useReducer(ticketReducer, initialState);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Mirrors state so async callbacks always read the latest values
   const stateRef = useRef(state);
@@ -117,34 +107,79 @@ export const TicketProvider = ({ children }) => {
   const requestIdRef = useRef(0);
   const isSupervisor = user?.role === "Supervisor";
 
-  // Build query params from current filters/sort
+  // ── filters & sorting live in the URL ──
 
-  const buildParams = (skip) => {
-    const { filters, sortBy, sortDir } = stateRef.current;
-    const params = {
-      sortBy,
-      sortDir,
-      skip,
-      take: PAGE_SIZE,
-    };
-    if (filters.priority) params.priority = filters.priority;
-    if (filters.assignee === "unassigned") params.unassigned = "true";
-    else if (filters.assignee) params.assignee = filters.assignee;
-    if (filters.search && filters.search.trim()) {
-      params.search = filters.search.trim();
-    }
-    return params;
+  const activeFilters = useMemo(() => parseFilters(searchParams), [searchParams]);
+  const { sortBy, sortDir } = useMemo(() => parseSort(searchParams), [searchParams]);
+
+  const visibleTickets = useMemo(
+    () => sortTickets(filterTickets(state.tickets, activeFilters), sortBy, sortDir),
+    [state.tickets, activeFilters, sortBy, sortDir]
+  );
+
+  const setFilters = (patch) => {
+    const next = new URLSearchParams(searchParams);
+    MANAGED_PARAMS.forEach((key) => next.delete(key));
+
+    const merged = { ...activeFilters, ...patch };
+    if (merged.status) next.set("status", merged.status);
+    if (merged.priority) next.set("priority", merged.priority);
+    if (merged.assignee != null) next.set("assignee", String(merged.assignee));
+    if (merged.search && merged.search.trim()) next.set("q", merged.search.trim());
+
+    // Debounced typing replaces history; discrete control clicks push a step
+    const searchOnly =
+      Object.keys(patch).length > 0 &&
+      Object.keys(patch).every((key) => key === "search");
+    setSearchParams(next, { replace: searchOnly });
   };
 
-  const fetchTickets = async () => {
+  const resetFilters = () => {
+    const next = new URLSearchParams(searchParams);
+    MANAGED_PARAMS.forEach((key) => next.delete(key));
+    setSearchParams(next);
+  };
+
+  const setSort = (nextSortBy, nextSortDir) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("sort", `${nextSortBy}:${nextSortDir}`);
+    setSearchParams(next);
+  };
+
+  // ── data loading: fetch everything once, paged until complete ──
+
+  const fetchAllTickets = async () => {
     const requestId = ++requestIdRef.current;
     dispatch({ type: "SET_LOADING", payload: true });
     dispatch({ type: "SET_ERROR", payload: null });
     try {
-      const response = await getTicketsApi(buildParams(0));
-      if (requestId !== requestIdRef.current) return; // stale
-      const { tickets, total } = response.data.data;
-      dispatch({ type: "SET_TICKETS", payload: { tickets, total } });
+      let accumulated = [];
+      let total = 0;
+
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const response = await getTicketsApi({
+          sortBy: "createdAt",
+          sortDir: "ASC",
+          skip: accumulated.length,
+          take: PAGE_SIZE,
+        });
+        if (requestId !== requestIdRef.current) return; // stale
+
+        const data = response.data.data || {};
+        const batch = data.tickets || [];
+        total =
+          typeof data.total === "number"
+            ? data.total
+            : accumulated.length + batch.length;
+
+        const seen = new Set(accumulated.map((t) => t.ticketId));
+        accumulated = [...accumulated, ...batch.filter((t) => !seen.has(t.ticketId))];
+
+        if (accumulated.length >= total || batch.length === 0) break;
+      }
+
+      if (requestId !== requestIdRef.current) return;
+      dispatch({ type: "SET_TICKETS", payload: { tickets: accumulated, total } });
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
       dispatch({
@@ -158,32 +193,9 @@ export const TicketProvider = ({ children }) => {
     }
   };
 
-  const loadMore = async () => {
-    const { tickets } = stateRef.current;
-    const requestId = ++requestIdRef.current;
-    dispatch({ type: "SET_LOADING_MORE", payload: true });
-    try {
-      const response = await getTicketsApi(buildParams(tickets.length));
-      if (requestId !== requestIdRef.current) return;
-      const { tickets: more, total } = response.data.data;
-      dispatch({
-        type: "SET_TICKETS",
-        payload: { tickets: more, total, append: true },
-      });
-    } catch (error) {
-      message.error(getErrorMessage(error, "Failed to load more tickets."));
-    } finally {
-      if (requestId === requestIdRef.current) {
-        dispatch({ type: "SET_LOADING_MORE", payload: false });
-      }
-    }
-  };
-
-  // Re-fetch when filters or sorting change
   useEffect(() => {
-    fetchTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.filters.priority, state.filters.assignee, state.filters.search, state.sortBy, state.sortDir]);
+    fetchAllTickets();
+  }, []);
 
   // Supervisors load the team list for assign dropdowns
   useEffect(() => {
@@ -258,33 +270,13 @@ export const TicketProvider = ({ children }) => {
     return { ...ticket, ...patch };
   };
 
-  // Client-side filter check (priority, assignee, search)
-  const matchesFilters = (ticket) => {
-    const { priority, assignee, search } = stateRef.current.filters;
-    if (priority && ticket.priority !== priority) return false;
-    if (assignee === "unassigned" && ticket.assignedTo != null) return false;
-    if (assignee && assignee !== "unassigned" && ticket.assignedTo !== assignee) {
-      return false;
-    }
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      const haystack = `${ticket.Title ?? ""} ${ticket.description ?? ""}`.toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  };
-
   // ── mutations ──
 
   const addTicket = async (values) => {
     try {
       const response = await createTicketApi(values);
       const ticket = enrichTicket(response.data.data.ticket);
-      if (matchesFilters(ticket)) {
-        dispatch({ type: "ADD_TICKET", payload: ticket });
-      } else {
-        fetchTickets();
-      }
+      dispatch({ type: "ADD_TICKET", payload: ticket });
       message.success(response.data.message || "Ticket created");
       return ticket;
     } catch (error) {
@@ -411,18 +403,17 @@ export const TicketProvider = ({ children }) => {
 
   const value = {
     ...state,
-    pageSize: PAGE_SIZE,
+    // Derived view with filters/sort applied on top of the full dataset.
+    // Mutations keep operating on the raw array via stateRef.
+    tickets: visibleTickets,
+    filters: activeFilters,
+    sortBy,
+    sortDir,
     isSupervisor,
-    setFilters: (patch) => dispatch({ type: "SET_FILTERS", payload: patch }),
-    resetFilters: () =>
-      dispatch({
-        type: "SET_FILTERS",
-        payload: { status: null, priority: null, assignee: null, search: "" },
-      }),
-    setSort: (sortBy, sortDir) =>
-      dispatch({ type: "SET_SORT", payload: { sortBy, sortDir } }),
-    refresh: fetchTickets,
-    loadMore,
+    setFilters,
+    resetFilters,
+    setSort,
+    refresh: fetchAllTickets,
     addTicket,
     editTicket,
     changeStatus,

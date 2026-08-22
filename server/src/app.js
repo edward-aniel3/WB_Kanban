@@ -1,54 +1,31 @@
 import express from "express";
-import cors from "cors";
+import cors from "./config/cors.js";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import authRoutes from "./api/auth/authRoute.js";
 import employeeRoutes from "./api/employees/employeesRoute.js";
 import ticketRoutes from "./api/tickets/ticketsRoute.js";
+import healthRoutes from "./api/health/healthRoute.js";
+import dbWakingErrorHandler from "./middlewares/errorMiddleware.js";
 
 const app = express();
 
 app.use(helmet());
-
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(cors);
+
+// Health check is mounted before the API routers on purpose: ticketRoutes
+// applies authMiddleware to everything mounted under /api, which would
+// otherwise shadow this endpoint. Warm-up probes must not require a token.
+app.use("/api/v1", healthRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api", ticketRoutes);
 
-app.get("/api/v1/health", async (req, res) => {
-  try {
-    const { poolPromise } = await import("./config/db.js");
-
-    const pool = await poolPromise;
-
-    const result = await pool
-      .request()
-      .query("SELECT GETDATE() AS CurrentTime");
-
-    res.json({
-      success: true,
-      database: "connected",
-      currentTime: result.recordset[0].CurrentTime,
-      message: "wb-kanban API is running"
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: "Database query failed",
-    });
-  }
-});
+// Central error handler must be registered after all routes.
+app.use(dbWakingErrorHandler);
 
 export default app;
