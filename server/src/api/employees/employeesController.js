@@ -14,7 +14,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * GET /api/employees
  * List all team members (Supervisor only)
  */
-const getEmployees = async (req, res) => {
+const getEmployees = async (req, res, next) => {
   try {
     const employees = await getAllEmployees();
 
@@ -24,10 +24,7 @@ const getEmployees = async (req, res) => {
     });
   } catch (error) {
     console.error("Get employees error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -35,7 +32,7 @@ const getEmployees = async (req, res) => {
  * POST /api/employees
  * Add employee to team (Supervisor only)
  */
-const addEmployee = async (req, res) => {
+const addEmployee = async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
 
@@ -82,10 +79,7 @@ const addEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error("Add employee error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -93,7 +87,7 @@ const addEmployee = async (req, res) => {
  * PATCH /api/employees/:id
  * Toggle employee active status (Supervisor only)
  */
-const toggleStatus = async (req, res) => {
+const toggleStatus = async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id);
 
@@ -139,10 +133,7 @@ const toggleStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Toggle employee status error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
@@ -150,7 +141,7 @@ const toggleStatus = async (req, res) => {
  * DELETE /api/employees/:id
  * Delete user completely (Supervisor only)
  */
-const deleteUserById = async (req, res) => {
+const deleteUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = parseInt(id);
@@ -194,10 +185,7 @@ const deleteUserById = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete user error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 

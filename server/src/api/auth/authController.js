@@ -5,7 +5,7 @@ import { JWT_SECRET, JWT_EXPIRES_IN } from "../../config/jwt.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -68,8 +68,8 @@ const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      maxAge: 3 * 60 * 60 * 1000, // 3 hours
     });
 
     return res.status(200).json({
@@ -83,14 +83,11 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
   try {
     const { email, password, name, role } = req.body;
 
@@ -158,19 +155,16 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error("Register error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
   try {
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     });
 
     return res.status(200).json({
@@ -179,14 +173,11 @@ const logout = async (req, res) => {
     });
   } catch (error) {
     console.error("Logout error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 
-const me = async (req, res) => {
+const me = async (req, res, next) => {
   try {
     const pool = await poolPromise;
 
@@ -217,10 +208,7 @@ const me = async (req, res) => {
     });
   } catch (error) {
     console.error("Me error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-    });
+    next(error);
   }
 };
 

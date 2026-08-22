@@ -26,13 +26,10 @@ const KanbanBoard = () => {
   const { user } = useAuth();
   const {
     tickets,
-    total,
     loading,
-    loadingMore,
     error,
     filters,
     refresh,
-    loadMore,
     changeStatus,
     addTicket,
     editTicket,
@@ -140,7 +137,7 @@ const KanbanBoard = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Kanban Board</h2>
           <p className="text-gray-500 mt-0.5 text-sm">
-            {total} ticket{total === 1 ? "" : "s"} · drag cards between columns
+            {tickets.length} ticket{tickets.length === 1 ? "" : "s"} · drag cards between columns
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -215,18 +212,6 @@ const KanbanBoard = () => {
           </DndContext>
         )}
       </div>
-
-      {!loading && tickets.length < total && (
-        <div className="mt-3 flex justify-center">
-          <Button
-            onClick={loadMore}
-            loading={loadingMore}
-            icon={<PlusOutlined />}
-          >
-            Load more ({total - tickets.length} remaining)
-          </Button>
-        </div>
-      )}
 
       <CreateTicketModal
         open={createOpen}

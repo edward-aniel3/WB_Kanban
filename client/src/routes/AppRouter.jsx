@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
 import EmployeesPage from "../pages/EmployeesPage";
 import KanbanPage from "../pages/KanbanPage";
+import ReportsPage from "../pages/ReportsPage";
 import ProtectedRoute from "../components/ProtectedRoute";
 import MainLayout from "../components/layout/MainLayout";
 import { useAuth } from "../context/AuthContext";
@@ -31,12 +32,7 @@ const AppRouter = () => {
             </div>
           } />
           <Route path="/employees" element={<EmployeesPage />} />
-          <Route path="/reports" element={
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Reports</h2>
-              <p className="text-gray-600 mt-2">Reports coming soon.</p>
-            </div>
-          } />
+          <Route path="/reports" element={<ReportsPage />} />
 
           {/* Shared routes */}
           <Route path="/kanban" element={<KanbanPage />} />

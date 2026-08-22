@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
-import app from "./src/app.js";
-import { poolPromise } from "./src/config/db.js";
+import app from "./app.js";
+import { poolPromise } from "./config/db.js";
 
 dotenv.config();
 

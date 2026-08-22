@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules/
 .env
+.env.production
+.firebase/
 .vite/
 .env.production
 .firebase/

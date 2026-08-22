@@ -75,9 +75,19 @@ const LoginPage = () => {
             <li key={feature} className="flex items-center gap-2">
               <span className="text-success">&#10003;</span>
               {feature}
+
             </li>
           ))}
         </ul>
+
+        <a
+          href="https://github.com/edward-aniel3/WB_Kanban"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-8 text-blue-200 underline underline-offset-4 hover:text-white"
+        >
+          Click here to visit the repository
+        </a>
       </div>
 
       {/* Right Panel - Login Form */}
