@@ -94,8 +94,9 @@ login page.
 
 ### As a Supervisor
 
-1. **Log in** with the Supervisor credentials — you land on the **Dashboard**,
-   and the sidebar shows the full menu (Dashboard, Kanban Board, Employees).
+1. **Log in** with the Supervisor credentials - you land on the **Dashboard**,
+   and the sidebar shows the full menu (Dashboard, Kanban Board, Employees,
+   Reports).
 2. Go to **Employees**:
    - Add an employee with the **Add Employee** modal (name, email, password).
    - Toggle an employee's active status (deactivated users cannot log in).
@@ -109,7 +110,12 @@ login page.
    - Click a card to open its detail modal: view info + history timeline,
      **Edit**, **Assign**, or **Delete** the ticket (delete asks for
      confirmation).
-4. Log out from the Avatar Icon in the Header.
+4. Open **Reports**:
+   - KPI cards: Total, Completed %, Unassigned, Open High Priority.
+   - Charts: tickets by status, by priority, and per assignee.
+   - The filter bar drives the whole page — filter to a slice and every card
+     and chart reflects it instantly.
+5. Log out from the Avatar Icon in the Header.
 
 ### As an Employee
 
@@ -125,6 +131,28 @@ login page.
    actions are Supervisor-only, enforced both in the UI and by the backend
    API (the server rejects unauthorized calls even if hit directly).
 
+---
+
+## Reports Dashboard & URL-Based Filtering
+
+Two recent updates to how tickets are viewed:
+
+**Reports (`/reports`, Supervisor menu)**
+- KPI cards: Total · Completed % · Unassigned · Open High Priority.
+- Recharts charts: tickets by status (board colors), by priority (donut),
+  per assignee (horizontal bars).
+- The standard filter bar sits on top — it doubles as the report's data
+  selector. Full details: [`docs/reportsAndFilters.md`](./docs/reportsAndFilters.md).
+
+**Filtering is now client-side, driven by the URL**
+- All tickets are fetched once; filtering, sorting, and search run locally —
+  instant results, no request per keystroke.
+- Active filters live in the URL query string, e.g.
+  `/kanban?status=To%20Do&priority=High&q=login`:
+  refresh, bookmark, or share a link and the exact view comes back; browser
+  Back/Forward walks through filter states.
+- Each page keeps independent filters (`/kanban` vs `/reports`).
+
 > Every pull request in this repository includes documentation in its comment
 > Initialize frontEnd/BackEnd #7 
 > Auth #9
@@ -134,6 +162,7 @@ login page.
 > Tickets crud (backend) #20 #24
 > Ticket logs integration #21 #25
 > Kanban UI #23 #26
+> Reports page & URL-based filtering #27
 
 ---
 
@@ -181,7 +210,7 @@ Base URL: `/api` (frontend talks to `VITE_API`, e.g.
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| GET | `/api/tickets` | Authenticated | List tickets with filtering, sorting, pagination. Query params: `status`, `priority`, `assignee`, `unassigned`, `search`, `sortBy`, `sortDir`, `skip`, `take` |
+| GET | `/api/tickets` | Authenticated | List tickets with filtering, sorting, pagination. Query params: `status`, `priority`, `assignee`, `unassigned`, `search`, `sortBy`, `sortDir`, `skip`, `take`. The UI fetches everything once and filters client-side, but these params remain fully supported |
 | POST | `/api/tickets` | Authenticated | Create a ticket. Body: `{ title (3–255 chars), description? (≤5000), status?, priority?, assignedTo? }`. Defaults: status `Backlog`, priority `Medium` |
 | GET | `/api/tickets/:id` | Authenticated | Get a single ticket |
 | GET | `/api/tickets/:id/history` | Authenticated | Get the ticket's audit log (newest first) |
@@ -271,16 +300,18 @@ client/
 │   ├── pages/
 │   │   ├── LoginPage.jsx
 │   │   ├── KanbanPage.jsx
-│   │   └── EmployeesPage.jsx
+│   │   ├── EmployeesPage.jsx
+│   │   └── ReportsPage.jsx     # /reports — KPIs + Recharts dashboard
 │   ├── context/
 │   │   ├── AuthContext.jsx    # current user, login/logout
-│   │   └── TicketContext.jsx  # board state + optimistic updates
+│   │   └── TicketContext.jsx  # fetch-once ticket store + optimistic updates
 │   ├── services/              # all API calls live here
 │   │   ├── authService.js
 │   │   ├── employeesService.js
 │   │   └── ticketsService.js
 │   ├── utils/
-│   │   └── axiosInstance.js   # axios instance + DB-waking interceptor
+│   │   ├── axiosInstance.js   # axios instance + DB-waking interceptor
+│   │   └── ticketFilters.js   # URL-driven client filter/sort helpers
 │   └── components/
 │       ├── ProtectedRoute.jsx
 │       ├── LogoutButton.jsx
