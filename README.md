@@ -141,8 +141,8 @@ Two recent updates to how tickets are viewed:
 - KPI cards: Total · Completed % · Unassigned · Open High Priority.
 - Recharts charts: tickets by status (board colors), by priority (donut),
   per assignee (horizontal bars).
-- The standard filter bar sits on top — it doubles as the report's data
-  selector. Full details: [`docs/reportsAndFilters.md`](./docs/reportsAndFilters.md).
+- The standard filter bar sits on top, it doubles as the report's data
+  selector.
 
 **Filtering is now client-side, driven by the URL**
 - All tickets are fetched once; filtering, sorting, and search run locally —
